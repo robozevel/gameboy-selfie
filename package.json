@@ -1,0 +1,30 @@
+{
+  "name": "gameboy-selfie",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "now-build": "nuxt generate",
+    "deploy": "now",
+    "dev": "nuxt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/robozevel/gameboy-selfie.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/robozevel/gameboy-selfie/issues"
+  },
+  "homepage": "https://github.com/robozevel/gameboy-selfie#readme",
+  "dependencies": {
+    "nuxt": "^2.6.2"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.1",
+    "eslint": "^5.16.0",
+    "eslint-loader": "^2.1.2",
+    "eslint-plugin-vue": "^5.2.2"
+  }
+}

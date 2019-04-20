@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "alias": [
+    "gameboy-selfie"
+  ],
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@now/static-build"
+    }
+  ]
+}
