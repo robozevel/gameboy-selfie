@@ -17,6 +17,7 @@
       </template>
       <template v-else>
         <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
+        <input type="range" min="1" step="0.1" max="10" v-model="brightness" />
         <input type="range" class="threshold" v-model="threshold" min="0" step="5" max="255" />
         <span class="button bw" :class="{ off: !grayscale }" role="button" @click="grayscale = !grayscale">B&W</span>
         <label class="button" role="button">
@@ -73,6 +74,7 @@ export default {
   },
   data () {
     return {
+      brightness: 1,
       zoom: 1,
       minZoom: 1,
       maxZoom: 3,
@@ -207,7 +209,7 @@ export default {
       const {
         frameImage, frameWidth, frameHeight,
         resizedWidth, resizedHeight, dx, dy,
-        threshold, highContrast, colors
+        threshold, highContrast, colors, brightness
       } = this
 
       const ctx = canvas.getContext('2d')
@@ -233,7 +235,12 @@ export default {
       ]
 
       for (let i = 0; i < length; i += 4) {
-        let luminance = (image.data[i] * 0.299) + (image.data[i + 1] * 0.587) + (image.data[i + 2] * 0.114)
+
+        let luminance = brightness * Math.sqrt(
+          Math.pow(image.data[i] * 0.299, 2) +
+          Math.pow(image.data[i + 1] * 0.587, 2) +
+          Math.pow(image.data[i + 2] * 0.114, 2)
+        )
 
         let x = i / 4 % image.width
         let y = Math.floor(i / 4 / image.width)
