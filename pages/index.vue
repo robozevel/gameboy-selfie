@@ -1,7 +1,7 @@
 <template>
   <main class="container">
-
-    <div class="image-container">
+    <camera-icon class="camera-icon" role="button" @click.native="showVideo = true" v-if="!showVideo" />
+    <div class="image-container" v-if="showVideo">
       <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata.once="play"></video>
       <canvas ref="canvas" :height="frameHeight" :width="frameWidth" :style="{ width: fitScale ? `${canvasWidth}px` : undefined }"></canvas>
       <div class="overlay" @click="capture" role="button">
@@ -16,6 +16,7 @@
         <a class="button" role="button" :href="captured" :download="filename">save</a>
       </template>
       <template v-else>
+        <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
         <input type="range" class="threshold" v-model="threshold" min="0" step="5" max="255" />
         <span class="button bw" :class="{ off: !grayscale }" role="button" @click="grayscale = !grayscale">B&W</span>
         <label class="button" role="button">
@@ -30,6 +31,8 @@
 </template>
 
 <script>
+import CameraIcon from '~/components/CameraIcon'
+
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const webcamSupported = process.browser && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
 
@@ -65,9 +68,15 @@ function getImage (src) {
 }
 
 export default {
+  components: {
+    CameraIcon
+  },
   data () {
     return {
-      video: null,
+      zoom: 1,
+      minZoom: 1,
+      maxZoom: 3,
+      showVideo: true,
       frameImage: null,
       timestamp: null,
       fitScale: true,
@@ -87,16 +96,7 @@ export default {
       webcamSupported
     }
   },
-  async mounted () {
-    if (!this.webcamSupported) return
-    const { video } = this.$refs
-    if (!video) return
-    try {
-      this.frameImage = await getImage('frame.png')
-      video.srcObject = await navigator.mediaDevices.getUserMedia(constraints)
-    } catch (err) {
-      // @TODO handle error!
-    }
+  mounted () {
     document.addEventListener('visibilitychange', this.onVisibilityChange)
   },
   beforeDestroy () {
@@ -118,6 +118,22 @@ export default {
     frameHeight () {
       return this.height + (this.padding * 2)
     },
+    fitHeight () {
+      return this.frameWidth * this.ratio
+    },
+    resizedWidth () {
+      const zoom = Math.min(Math.max(this.zoom, this.minZoom), this.maxZoom)
+      return this.frameWidth * zoom
+    },
+    resizedHeight () {
+      return this.resizedWidth * this.ratio
+    },
+    dx () {
+      return (this.resizedWidth / 2) - (this.frameWidth / 2) - this.resizedWidth
+    },
+    dy () {
+      return ((this.resizedHeight / 2) - (this.fitHeight / 2)) * -1
+    },
     canvasWidth () {
       return ((this.originalPadding * 2) + this.originalWidth) * this.maxScale
     },
@@ -131,7 +147,29 @@ export default {
       return this.grayscale ? GRAYSCALE_COLORS : GAMEBOY_COLORS
     }
   },
+  watch: {
+    showVideo: {
+      immediate: true,
+      handler (showVideo) {
+        if (showVideo) this.initialize()
+      }
+    }
+  },
   methods: {
+    async initialize () {
+      if (!this.webcamSupported) return
+      this.showVideo = true
+      await this.$nextTick()
+
+      const { video } = this.$refs
+      if (!video) return
+      try {
+        this.frameImage = await getImage('frame.png')
+        video.srcObject = await navigator.mediaDevices.getUserMedia(constraints)
+      } catch (err) {
+        // @TODO handle error!
+      }
+    },
     onPlay () {
       const { video } = this.$refs
       this.videoWidth = video.videoWidth
@@ -166,7 +204,11 @@ export default {
     },
     computeFrame () {
       const { video, canvas } = this.$refs
-      const { frameImage, frameWidth, frameHeight, width, height, videoWidth, threshold, highContrast, colors, scale, padding, ratio } = this
+      const {
+        frameImage, frameWidth, frameHeight,
+        resizedWidth, resizedHeight, dx, dy,
+        threshold, highContrast, colors
+      } = this
 
       const ctx = canvas.getContext('2d')
       ctx.mozImageSmoothingEnabled = false
@@ -178,9 +220,8 @@ export default {
 
       ctx.setTransform(-1, 0, 0, 1, 0, 0)
 
-      ctx.drawImage(video, (width + padding) * -1, padding, width, width * ratio)
-
-      const image = ctx.getImageData(0, 0, width + padding, height + padding)
+      ctx.drawImage(video, dx, dy, resizedWidth, resizedHeight)
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const { length } = image.data
 
       // Bayer threshold map
@@ -214,6 +255,8 @@ export default {
       }
 
       ctx.putImageData(image, 0, 0)
+
+      // draw frame image
       if (frameImage) ctx.drawImage(frameImage, -frameWidth, 0, frameWidth, frameHeight)
     },
     async capture () {
@@ -241,7 +284,7 @@ export default {
   text-align: center;
   position: relative;
   max-width: 100%;
-  padding: 32px;
+  padding: 16px;
   box-sizing: border-box;
 }
 
@@ -295,6 +338,10 @@ canvas {
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+.camera-icon {
+  fill: #fff;
 }
 
 [role="button"] {
