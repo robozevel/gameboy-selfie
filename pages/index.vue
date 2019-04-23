@@ -1,16 +1,15 @@
 <template>
-  <main class="container">
-    <camera-icon class="camera-icon" role="button" @click.native="showVideo = true" v-if="!showVideo" />
-    <div class="image-container" v-if="showVideo">
+  <main>
+    <div class="image-container" :style="{ maxWidth: fitScale ? `${canvasWidth}px` : `${frameWidth}px` }">
       <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata.once="play"></video>
-      <canvas ref="canvas" :height="frameHeight" :width="frameWidth" :style="{ width: fitScale ? `${canvasWidth}px` : undefined }"></canvas>
-      <div class="overlay" @click="capture" role="button">
+      <canvas ref="canvas" :height="frameHeight" :width="frameWidth"></canvas>
+      <div class="overlay">
         <span class="count" v-if="showCount">{{ count }}</span>
         <img :src="captured" v-else-if="captured" />
       </div>
     </div>
 
-    <div class="buttons-container" :style="{ maxWidth: `${canvasWidth}px` }">
+    <div class="buttons-container" :style="{ maxWidth: `${canvasWidth}px` }" v-if="!showCount">
       <template v-if="captured">
         <span class="button" role="button" @click="retake">retake</span>
         <a class="button" role="button" :href="captured" :download="filename">save</a>
@@ -19,21 +18,18 @@
         <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
         <input type="range" min="1" step="0.1" max="10" v-model="brightness" />
         <input type="range" class="threshold" v-model="threshold" min="0" step="5" max="255" />
-        <span class="button bw" :class="{ off: !grayscale }" role="button" @click="grayscale = !grayscale">B&W</span>
-        <label class="button" role="button">
-          <input type="checkbox" class="contrast" v-model="highContrast" />{{ highContrast ? 'hi' : 'low' }}
-        </label>
-        <span class="button fit-scale" role="button" @click="fitScale = !fitScale">{{ fitScale ? '⊠' : '⊡' }}</span>
+        <span class="button" role="button" :class="{ off: !grayscale }" @click="grayscale = !grayscale">b&w</span>
+        <span class="button" role="button" :class="{ off: !highContrast }" @click="highContrast = !highContrast">hi</span>
+        <div class="button capture" role="button" @click="capture">@</div>
+        <span class="button" role="button" :class="{ off: !fitScale }" @click="fitScale = !fitScale">fit</span>
         <span class="button" role="button" @click="scaleUp">{{ scale }}x</span>
       </template>
     </div>
-  
+
   </main>
 </template>
 
 <script>
-import CameraIcon from '~/components/CameraIcon'
-
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const webcamSupported = process.browser && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
 
@@ -69,11 +65,15 @@ function getImage (src) {
 }
 
 export default {
-  components: {
-    CameraIcon
-  },
   data () {
     return {
+      // Bayer threshold map
+      thresholdMap: [
+        [15, 135, 45, 165],
+        [195, 75, 225, 105],
+        [60, 180, 30, 150],
+        [240, 120, 210, 90]
+      ],
       brightness: 1,
       zoom: 1,
       minZoom: 1,
@@ -100,6 +100,7 @@ export default {
   },
   mounted () {
     document.addEventListener('visibilitychange', this.onVisibilityChange)
+    this.initialize()
   },
   beforeDestroy () {
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
@@ -149,18 +150,9 @@ export default {
       return this.grayscale ? GRAYSCALE_COLORS : GAMEBOY_COLORS
     }
   },
-  watch: {
-    showVideo: {
-      immediate: true,
-      handler (showVideo) {
-        if (showVideo) this.initialize()
-      }
-    }
-  },
   methods: {
     async initialize () {
       if (!this.webcamSupported) return
-      this.showVideo = true
       await this.$nextTick()
 
       const { video } = this.$refs
@@ -209,7 +201,7 @@ export default {
       const {
         frameImage, frameWidth, frameHeight,
         resizedWidth, resizedHeight, dx, dy,
-        threshold, highContrast, colors, brightness
+        thresholdMap, threshold, highContrast, colors, brightness
       } = this
 
       const ctx = canvas.getContext('2d')
@@ -225,14 +217,6 @@ export default {
       ctx.drawImage(video, dx, dy, resizedWidth, resizedHeight)
       const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const { length } = image.data
-
-      // Bayer threshold map
-      let thresholdMap = [
-        [15, 135, 45, 165],
-        [195, 75, 225, 105],
-        [60, 180, 30, 150],
-        [240, 120, 210, 90]
-      ]
 
       for (let i = 0; i < length; i += 4) {
 
@@ -283,30 +267,20 @@ export default {
 </script>
 
 <style scoped>
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 0 auto;
-  text-align: center;
-  position: relative;
-  max-width: 100%;
-  padding: 16px;
-  box-sizing: border-box;
-}
 
 video {
   display: none;
 }
 
 canvas {
-  cursor: pointer;
+  width: 100%;
   image-rendering: pixelated;
 }
 
 .image-container {
-  display: block;
   position: relative;
+  text-align: center;
+  margin: 0 auto;
 }
 
 .overlay {
@@ -335,8 +309,7 @@ canvas {
 
 .buttons-container {
   margin: 0 auto;
-  font-family: monospace;
-  box-sizing: border-box;
+  padding: 12px 6px;
   align-items: center;
   justify-content: space-between;
   display: flex;
@@ -347,8 +320,12 @@ canvas {
   right: 0;
 }
 
-.camera-icon {
-  fill: #fff;
+.button.capture {
+  font-size: 64px;
+}
+
+[type="range"] {
+  margin-bottom: 12px;
 }
 
 [role="button"] {
@@ -368,23 +345,13 @@ canvas {
 .button {
   color: #fff;
   text-shadow: #000 1px 1px;
-  font-size: 24px;
   text-transform: uppercase;
-  padding: 20px 15px;
+  font-size: 16px;
+  padding: 12px;
 }
 
-.button.fit-scale {
-  line-height: 24px;
-  font-size: 42px;
-  padding-right: 0;
-}
-
-.button.bw {
-  padding-right: 5px;
-}
-
-.button.bw.off {
-  text-decoration: line-through;
+.button.off {
+  opacity: .5;
 }
 
 a.button {
