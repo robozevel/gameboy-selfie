@@ -27,7 +27,7 @@
           <span>contrast</span>
           <input type="range" v-model="threshold" min="0" step="5" max="255" />
         </label>
-        <span class="button" role="button" :class="{ off: !grayscale }" @click="grayscale = !grayscale">b&w</span>
+        <span class="button" role="button" @click="togglePallete">hue</span>
         <span class="button" role="button" :class="{ off: !highContrast }" @click="highContrast = !highContrast">hi</span>
         <div class="button capture" role="button" @click="capture">@</div>
         <span class="button" role="button" :class="{ off: !fitScale }" @click="fitScale = !fitScale">fit</span>
@@ -57,11 +57,25 @@ const GRAYSCALE_COLORS = [
   [253, 253, 253]
 ]
 
+const GBC_COLORS = [
+  [1, 0, 1],
+  [0, 98, 198],
+  [124, 254, 53],
+  [255, 254, 255]
+]
+
 const GAMEBOY_COLORS = [
   [15, 56, 15],
   [48, 98, 48],
   [119, 161, 18],
   [155, 188, 15]
+]
+
+const BAYER_THRESHOLD_MAP = [
+  [15, 135, 45, 165],
+  [195, 75, 225, 105],
+  [60, 180, 30, 150],
+  [240, 120, 210, 90]
 ]
 
 function getImage (src) {
@@ -76,17 +90,17 @@ function getImage (src) {
 export default {
   data () {
     return {
-      // Bayer threshold map
-      thresholdMap: [
-        [15, 135, 45, 165],
-        [195, 75, 225, 105],
-        [60, 180, 30, 150],
-        [240, 120, 210, 90]
+      thresholdMap: BAYER_THRESHOLD_MAP,
+      palletes: [
+        GRAYSCALE_COLORS,
+        GAMEBOY_COLORS,
+        GBC_COLORS
       ],
+      palleteIndex: 0,
       brightness: 1,
       zoom: 1,
       minZoom: 1,
-      maxZoom: 3,
+      maxZoom: 5,
       showVideo: true,
       frameImage: null,
       timestamp: null,
@@ -155,8 +169,8 @@ export default {
     filename () {
       return `GAMEBOY_CAMERA_${this.timestamp}.png`
     },
-    colors () {
-      return this.grayscale ? GRAYSCALE_COLORS : GAMEBOY_COLORS
+    pallete () {
+      return this.palletes[this.palleteIndex]
     }
   },
   methods: {
@@ -197,6 +211,11 @@ export default {
       const scale = this.scale + 1
       this.scale = scale > this.maxScale ? 1 : scale
     },
+    togglePallete () {
+      const { pallete, palletes } = this
+      const i = palletes.indexOf(pallete) + 1
+      this.palleteIndex = palletes.length === i ? 0 : i
+    },
     async countdownSeconds (n) {
       let count = Number(n)
       this.count = count
@@ -210,7 +229,7 @@ export default {
       const {
         frameImage, frameWidth, frameHeight,
         resizedWidth, resizedHeight, dx, dy,
-        thresholdMap, threshold, highContrast, colors, brightness
+        thresholdMap, threshold, highContrast, pallete, brightness
       } = this
 
       const ctx = canvas.getContext('2d')
@@ -256,7 +275,7 @@ export default {
           else colorIndex = map > (threshold * 2) ? 3 : 2;
         }
 
-        let [r, g, b] = colors[colorIndex]
+        let [r, g, b] = pallete[colorIndex]
         image.data[i] = r
         image.data[i + 1] = g
         image.data[i + 2] = b
