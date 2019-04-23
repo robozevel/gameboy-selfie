@@ -50,27 +50,6 @@ const constraints = {
   }
 }
 
-const GRAYSCALE_COLORS = [
-  [13, 13, 13],
-  [103, 103, 103],
-  [181, 181, 181],
-  [253, 253, 253]
-]
-
-const GBC_COLORS = [
-  [1, 0, 1],
-  [0, 98, 198],
-  [124, 254, 53],
-  [255, 254, 255]
-]
-
-const GAMEBOY_COLORS = [
-  [15, 56, 15],
-  [48, 98, 48],
-  [119, 161, 18],
-  [155, 188, 15]
-]
-
 const BAYER_THRESHOLD_MAP = [
   [15, 135, 45, 165],
   [195, 75, 225, 105],
@@ -92,9 +71,27 @@ export default {
     return {
       thresholdMap: BAYER_THRESHOLD_MAP,
       palletes: [
-        GRAYSCALE_COLORS,
-        GAMEBOY_COLORS,
-        GBC_COLORS
+        // Grayscale
+        [
+          [13, 13, 13],
+          [103, 103, 103],
+          [181, 181, 181],
+          [253, 253, 253]
+        ],
+        // Original Gameboy
+        [
+          [15, 56, 15],
+          [48, 98, 48],
+          [119, 161, 18],
+          [155, 188, 15]
+        ],
+        // Gameboy Color
+        [
+          [1, 0, 1],
+          [0, 98, 198],
+          [124, 254, 53],
+          [255, 254, 255]
+        ]
       ],
       palleteIndex: 0,
       brightness: 1,
@@ -105,7 +102,6 @@ export default {
       frameImage: null,
       timestamp: null,
       fitScale: true,
-      grayscale: true,
       highContrast: false,
       scale: 1,
       maxScale: 3,
@@ -390,7 +386,7 @@ a.button {
   display: flex;
   align-items: center;
   flex: 1 0 100%;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .slider span {
@@ -412,48 +408,48 @@ input[type=range]:focus {
 }
 input[type=range]::-webkit-slider-runnable-track {
   width: 100%;
-  height: 0px;
+  height: 0;
   cursor: pointer;
   box-shadow: none;
   background: #fff;
-  border-radius: 0px;
-  border: 2px solid #fff;
+  border-radius: 0;
+  border: 4px solid #fff;
 }
 input[type=range]::-webkit-slider-thumb {
   box-shadow: none;
   border: none;
-  height: 16px;
-  width: 16px;
-  border-radius: 8px;
+  height: 18px;
+  width: 18px;
+  border-radius: 0;
   background: #fff;
   cursor: pointer;
   -webkit-appearance: none;
-  margin-top: -10px;
+  margin-top: -8px;
 }
 input[type=range]:focus::-webkit-slider-runnable-track {
   background: #fff;
 }
 input[type=range]::-moz-range-track {
   width: 100%;
-  height: 0px;
+  height: 0;
   cursor: pointer;
   box-shadow: none;
   background: #fff;
-  border-radius: 0px;
+  border-radius: 0;
   border: 2px solid #fff;
 }
 input[type=range]::-moz-range-thumb {
   box-shadow: none;
   border: none;
-  height: 16px;
-  width: 16px;
-  border-radius: 8px;
+  height: 18px;
+  width: 18px;
+  border-radius: 0;
   background: #fff;
   cursor: pointer;
 }
 input[type=range]::-ms-track {
   width: 100%;
-  height: 0px;
+  height: 0;
   cursor: pointer;
   background: transparent;
   border-color: transparent;
@@ -462,24 +458,24 @@ input[type=range]::-ms-track {
 input[type=range]::-ms-fill-lower {
   background: #fff;
   border: 2px solid #fff;
-  border-radius: 0px;
+  border-radius: 0;
   box-shadow: none;
 }
 input[type=range]::-ms-fill-upper {
   background: #fff;
   border: 2px solid #fff;
-  border-radius: 0px;
+  border-radius: 0;
   box-shadow: none;
 }
 input[type=range]::-ms-thumb {
   box-shadow: none;
   border: none;
-  height: 16px;
-  width: 16px;
-  border-radius: 8px;
+  height: 18px;
+  width: 18px;
+  border-radius: 0;
   background: #fff;
   cursor: pointer;
-  height: 0px;
+  height: 0;
 }
 input[type=range]:focus::-ms-fill-lower {
   background: #fff;
