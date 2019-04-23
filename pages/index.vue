@@ -212,31 +212,39 @@ export default {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+      // mirror video stream
       ctx.setTransform(-1, 0, 0, 1, 0, 0)
 
+      // resize video
       ctx.drawImage(video, dx, dy, resizedWidth, resizedHeight)
+
+      // get current frame
       const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const { length } = image.data
 
+      // iterate image pixels
       for (let i = 0; i < length; i += 4) {
 
+        // increase luminance by brightness factor
         let luminance = brightness * Math.sqrt(
           Math.pow(image.data[i] * 0.299, 2) +
           Math.pow(image.data[i + 1] * 0.587, 2) +
           Math.pow(image.data[i + 2] * 0.114, 2)
         )
 
+        // use threshold map to find greyscale value
         let x = i / 4 % image.width
         let y = Math.floor(i / 4 / image.width)
         let map = Math.floor((luminance + thresholdMap[x % 4][y % 4]) / 2)
 
+        // set color by contrast threshold
         let colorIndex = 0
         if (map < threshold) {
           if (highContrast) colorIndex = 0
           else colorIndex = map < (threshold / 2) ? 0 : 1;
         } else {
           if (highContrast) colorIndex = 3
-          else colorIndex = map > (threshold / 2) ? 3 : 2;
+          else colorIndex = map > (threshold * 2) ? 3 : 2;
         }
 
         let [r, g, b] = colors[colorIndex]
