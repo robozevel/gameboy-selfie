@@ -15,9 +15,18 @@
         <a class="button" role="button" :href="captured" :download="filename">save</a>
       </template>
       <template v-else>
-        <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
-        <input type="range" min="1" step="0.1" max="10" v-model="brightness" />
-        <input type="range" class="threshold" v-model="threshold" min="0" step="5" max="255" />
+        <label class="slider">
+          <span>zoom</span>
+          <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
+        </label>
+        <label class="slider">
+          <span>brightness</span>
+          <input type="range" v-model="brightness" min="1" step="0.1" max="10" />
+        </label>
+        <label class="slider">
+          <span>contrast</span>
+          <input type="range" v-model="threshold" min="0" step="5" max="255" />
+        </label>
         <span class="button" role="button" :class="{ off: !grayscale }" @click="grayscale = !grayscale">b&w</span>
         <span class="button" role="button" :class="{ off: !highContrast }" @click="highContrast = !highContrast">hi</span>
         <div class="button capture" role="button" @click="capture">@</div>
@@ -316,6 +325,9 @@ canvas {
 }
 
 .buttons-container {
+  color: #fff;
+  text-transform: uppercase;
+  font-size: 16px;
   margin: 0 auto;
   padding: 12px 6px;
   align-items: center;
@@ -330,13 +342,10 @@ canvas {
 
 .button.capture {
   font-size: 64px;
+  padding: 0;
 }
 
-[type="range"] {
-  margin-bottom: 12px;
-}
-
-[role="button"] {
+[role=button] {
   cursor: pointer;
   user-select: none;
 }
@@ -346,15 +355,7 @@ canvas {
   visibility: hidden;
 }
 
-.threshold {
-  flex-basis: 100%;
-}
-
 .button {
-  color: #fff;
-  text-shadow: #000 1px 1px;
-  text-transform: uppercase;
-  font-size: 16px;
   padding: 12px;
 }
 
@@ -365,4 +366,107 @@ canvas {
 a.button {
   text-decoration: none;
 }
+
+.slider {
+  display: flex;
+  align-items: center;
+  flex: 1 0 100%;
+  margin-bottom: 6px;
+}
+
+.slider span {
+  font-size: 10px;
+  padding: 6px;
+}
+
+.slider input {
+  flex: 1;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  margin: 16px 0;
+}
+input[type=range]:focus {
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 0px;
+  cursor: pointer;
+  box-shadow: none;
+  background: #fff;
+  border-radius: 0px;
+  border: 2px solid #fff;
+}
+input[type=range]::-webkit-slider-thumb {
+  box-shadow: none;
+  border: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -10px;
+}
+input[type=range]:focus::-webkit-slider-runnable-track {
+  background: #fff;
+}
+input[type=range]::-moz-range-track {
+  width: 100%;
+  height: 0px;
+  cursor: pointer;
+  box-shadow: none;
+  background: #fff;
+  border-radius: 0px;
+  border: 2px solid #fff;
+}
+input[type=range]::-moz-range-thumb {
+  box-shadow: none;
+  border: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+input[type=range]::-ms-track {
+  width: 100%;
+  height: 0px;
+  cursor: pointer;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+input[type=range]::-ms-fill-lower {
+  background: #fff;
+  border: 2px solid #fff;
+  border-radius: 0px;
+  box-shadow: none;
+}
+input[type=range]::-ms-fill-upper {
+  background: #fff;
+  border: 2px solid #fff;
+  border-radius: 0px;
+  box-shadow: none;
+}
+input[type=range]::-ms-thumb {
+  box-shadow: none;
+  border: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  height: 0px;
+}
+input[type=range]:focus::-ms-fill-lower {
+  background: #fff;
+}
+input[type=range]:focus::-ms-fill-upper {
+  background: #fff;
+}
+
 </style>
