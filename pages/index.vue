@@ -3,7 +3,7 @@
     <div class="image-container" :style="{ maxWidth: fitScale ? `${canvasWidth}px` : `${frameWidth}px` }">
       <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata.once="play"></video>
       <canvas ref="canvas" :height="frameHeight" :width="frameWidth"></canvas>
-      <div class="overlay">
+      <div class="overlay" role="button" @click="capture" :class="{ 'show-instructions': showInstructions }">
         <span class="count" v-if="showCount">{{ count }}</span>
         <img :src="captured" v-else-if="captured" />
       </div>
@@ -11,27 +11,28 @@
 
     <div class="buttons-container" :style="{ maxWidth: `${canvasWidth}px` }" v-if="!showCount">
       <template v-if="captured">
-        <span class="button" role="button" @click="retake">retake</span>
-        <a class="button" role="button" :href="captured" :download="filename">save</a>
+        <span class="button retake" role="button" @click="retake">retake</span>
+        <a class="button save" role="button" :href="captured" :download="filename">save</a>
       </template>
       <template v-else>
-        <label class="slider">
+        <div class="slider">
           <span>zoom</span>
           <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
-        </label>
-        <label class="slider">
-          <span>brightness</span>
-          <input type="range" v-model="brightness" min="1" step="0.1" max="10" />
-        </label>
-        <label class="slider">
+          <span role="button" class="button" :class="{ off: !fitScale }" @click="fitScale = !fitScale">fit</span>
+          <span role="button" class="button" @click="scaleUp">{{ scale }}x</span>
+        </div>
+        <div class="slider">
           <span>contrast</span>
           <input type="range" v-model="threshold" min="0" step="5" max="255" />
-        </label>
-        <span class="button" role="button" @click="togglePallete">hue</span>
-        <span class="button" role="button" :class="{ off: !highContrast }" @click="highContrast = !highContrast">hi</span>
-        <div class="button capture" role="button" @click="capture">@</div>
-        <span class="button" role="button" :class="{ off: !fitScale }" @click="fitScale = !fitScale">fit</span>
-        <span class="button" role="button" @click="scaleUp">{{ scale }}x</span>
+          <span role="button" class="button" :class="{ off: !highContrast }" @click="highContrast = !highContrast">hi</span>
+        </div>
+        <div class="slider">
+          <span>brightness</span>
+          <input type="range" v-model="brightness" min="1" step="0.1" max="10" />
+        </div>
+        <div class="palletes">
+          <pallete role="button" @click.native="palleteIndex = i" v-for="(pallete, i) in palletes" :pallete="pallete" :selected="palleteIndex === i" :key="i" />
+        </div>        
       </template>
     </div>
 
@@ -39,6 +40,9 @@
 </template>
 
 <script>
+import Pallete from '~/components/Pallete'
+import PALLETES from '~/palletes'
+
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const webcamSupported = process.browser && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
 
@@ -67,32 +71,13 @@ function getImage (src) {
 }
 
 export default {
+  components: {
+    Pallete
+  },
   data () {
     return {
       thresholdMap: BAYER_THRESHOLD_MAP,
-      palletes: [
-        // Grayscale
-        [
-          [13, 13, 13],
-          [103, 103, 103],
-          [181, 181, 181],
-          [253, 253, 253]
-        ],
-        // Original Gameboy
-        [
-          [15, 56, 15],
-          [48, 98, 48],
-          [119, 161, 18],
-          [155, 188, 15]
-        ],
-        // Gameboy Color
-        [
-          [1, 0, 1],
-          [0, 98, 198],
-          [124, 254, 53],
-          [255, 254, 255]
-        ]
-      ],
+      palletes: PALLETES,
       palleteIndex: 0,
       brightness: 1,
       zoom: 1,
@@ -167,6 +152,9 @@ export default {
     },
     pallete () {
       return this.palletes[this.palleteIndex]
+    },
+    showInstructions () {
+      return !(this.captured || this.count)
     }
   },
   methods: {
@@ -206,11 +194,6 @@ export default {
     scaleUp () {
       const scale = this.scale + 1
       this.scale = scale > this.maxScale ? 1 : scale
-    },
-    togglePallete () {
-      const { pallete, palletes } = this
-      const i = palletes.indexOf(pallete) + 1
-      this.palleteIndex = palletes.length === i ? 0 : i
     },
     async countdownSeconds (n) {
       let count = Number(n)
@@ -271,7 +254,7 @@ export default {
           else colorIndex = map > (threshold * 2) ? 3 : 2;
         }
 
-        let [r, g, b] = pallete[colorIndex]
+        let [r, g, b] = pallete.colors[colorIndex]
         image.data[i] = r
         image.data[i + 1] = g
         image.data[i + 2] = b
@@ -299,6 +282,11 @@ export default {
 </script>
 
 <style scoped>
+.palletes {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: auto;
+}
 
 video {
   display: none;
@@ -307,6 +295,13 @@ video {
 canvas {
   width: 100%;
   image-rendering: pixelated;
+}
+
+h1 {
+  color: #fff;
+  position: relative;
+  text-align: center;
+  margin: 0 auto;
 }
 
 .image-container {
@@ -328,6 +323,20 @@ canvas {
   justify-content: center;
 }
 
+.overlay.show-instructions:hover::after {
+  pointer-events: none;
+  content: 'tap to snap!';
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+@media (any-hover: hover) {
+  .overlay.show-instructions:hover::after {
+    content: 'click to snap!';
+  }
+}
+
 .overlay img {
   width: 100%;
   height: auto;
@@ -344,7 +353,7 @@ canvas {
   text-transform: uppercase;
   font-size: 16px;
   margin: 0 auto;
-  padding: 12px 6px;
+  padding: 6px 12px;
   align-items: center;
   justify-content: space-between;
   display: flex;
@@ -353,11 +362,6 @@ canvas {
   bottom: 0;
   left: 0;
   right: 0;
-}
-
-.button.capture {
-  font-size: 64px;
-  padding: 0;
 }
 
 [role=button] {
@@ -370,32 +374,44 @@ canvas {
   visibility: hidden;
 }
 
+a {
+  text-decoration: none;
+}
+
+.slider {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  flex: 1 0 100%;
+  font-size: 10px;
+  margin-bottom: 12px;
+}
+
+.slider :first-child {
+  margin-right: 6px;
+}
+
+.slider input {
+  flex: 1;
+}
+
+.slider .button {
+  margin-left: 6px;
+}
+
 .button {
-  padding: 12px;
+  padding: 6px;
+  border: 2px solid currentColor;
 }
 
 .button.off {
   opacity: .5;
 }
 
-a.button {
-  text-decoration: none;
-}
-
-.slider {
-  display: flex;
-  align-items: center;
-  flex: 1 0 100%;
-  margin-bottom: 12px;
-}
-
-.slider span {
-  font-size: 10px;
-  padding: 6px;
-}
-
-.slider input {
-  flex: 1;
+.button.retake,
+.button.save {
+  margin: 16px;
+  padding: 16px;
 }
 
 input[type=range] {
@@ -416,9 +432,9 @@ input[type=range]::-webkit-slider-runnable-track {
   border: 4px solid #fff;
 }
 input[type=range]::-webkit-slider-thumb {
-  box-shadow: none;
   border: none;
   height: 18px;
+  box-shadow: 3px 0 0 #000;
   width: 18px;
   border-radius: 0;
   background: #fff;
@@ -439,9 +455,9 @@ input[type=range]::-moz-range-track {
   border: 2px solid #fff;
 }
 input[type=range]::-moz-range-thumb {
-  box-shadow: none;
   border: none;
   height: 18px;
+  box-shadow: 3px 0 0 #000;
   width: 18px;
   border-radius: 0;
   background: #fff;
@@ -468,9 +484,9 @@ input[type=range]::-ms-fill-upper {
   box-shadow: none;
 }
 input[type=range]::-ms-thumb {
-  box-shadow: none;
   border: none;
   height: 18px;
+  box-shadow: 3px 0 0 #000;
   width: 18px;
   border-radius: 0;
   background: #fff;
