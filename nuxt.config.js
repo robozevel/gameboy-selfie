@@ -1,4 +1,4 @@
-const title = 'Gameboy Selfie'
+const title = 'GAMEBOY SELFIE ☻ TAP TO SNAP!'
 
 module.exports = () => ({
   mode: 'universal',
@@ -18,9 +18,7 @@ module.exports = () => ({
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Press+Start+2P' }
     ]
   },
-  loading: {
-    color: '#bada55'
-  },
+  loading: false,
   build: {
     extend(config, ctx) {
       // Run ESLint on save
