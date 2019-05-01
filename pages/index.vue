@@ -30,9 +30,9 @@
           <span>brightness</span>
           <input type="range" v-model="brightness" min="1" step="0.1" max="10" />
         </div>
-        <div class="palletes">
-          <pallete role="button" @click.native="palleteIndex = i" v-for="(pallete, i) in palletes" :pallete="pallete" :selected="palleteIndex === i" :key="i" />
-        </div>        
+        <div class="palettes">
+          <palette role="button" @click.native="paletteIndex = i" v-for="(palette, i) in palettes" :palette="palette" :selected="paletteIndex === i" :key="i" />
+        </div>
       </template>
     </div>
 
@@ -40,8 +40,8 @@
 </template>
 
 <script>
-import Pallete from '~/components/Pallete'
-import PALLETES from '~/palletes'
+import palette from '~/components/palette'
+import PALETTES from '~/palettes'
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const webcamSupported = process.browser && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
@@ -72,19 +72,20 @@ function getImage (src) {
 
 export default {
   components: {
-    Pallete
+    palette
   },
   data () {
     return {
       thresholdMap: BAYER_THRESHOLD_MAP,
-      palletes: PALLETES,
-      palleteIndex: 0,
+      palettes: PALETTES,
+      paletteIndex: 0,
       brightness: 1,
       zoom: 1,
       minZoom: 1,
       maxZoom: 5,
       showVideo: true,
       frameImage: null,
+      frameColors: [0, 128, 192, 255],
       timestamp: null,
       fitScale: true,
       highContrast: false,
@@ -150,8 +151,8 @@ export default {
     filename () {
       return `GAMEBOY_CAMERA_${this.timestamp}.png`
     },
-    pallete () {
-      return this.palletes[this.palleteIndex]
+    palette () {
+      return this.palettes[this.paletteIndex]
     },
     showInstructions () {
       return !(this.captured || this.count)
@@ -159,19 +160,21 @@ export default {
   },
   methods: {
     async initialize () {
-      if (!this.webcamSupported) return
       await this.$nextTick()
-
-      const { video } = this.$refs
-      if (!video) return
       try {
+        if (!this.webcamSupported) throw new Error('Webcam not supported')
+        const { video, frameCanvas } = this.$refs
+
+        // get frame image data
         this.frameImage = await getImage('frame.png')
+        // set stream to video element
         video.srcObject = await navigator.mediaDevices.getUserMedia(constraints)
       } catch (err) {
         // @TODO handle error!
       }
     },
-    onPlay () {
+    async onPlay () {
+      await this.$nextTick()
       const { video } = this.$refs
       this.videoWidth = video.videoWidth
       this.videoHeight = video.videoHeight
@@ -207,17 +210,17 @@ export default {
       const { video, canvas } = this.$refs
       const {
         frameImage, frameWidth, frameHeight,
-        resizedWidth, resizedHeight, dx, dy,
-        thresholdMap, threshold, highContrast, pallete, brightness
+        resizedWidth, resizedHeight, dx, dy, padding,
+        thresholdMap, threshold, highContrast, brightness, palette, frameColors
       } = this
+
+      const [, colors] = palette
 
       const ctx = canvas.getContext('2d')
       ctx.mozImageSmoothingEnabled = false
       ctx.webkitImageSmoothingEnabled = false
       ctx.msImageSmoothingEnabled = false
       ctx.imageSmoothingEnabled = false
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // mirror video stream
       ctx.setTransform(-1, 0, 0, 1, 0, 0)
@@ -254,16 +257,30 @@ export default {
           else colorIndex = map > (threshold * 2) ? 3 : 2;
         }
 
-        let [r, g, b] = pallete.colors[colorIndex]
+        let [r, g, b] = colors[colorIndex]
         image.data[i] = r
         image.data[i + 1] = g
         image.data[i + 2] = b
       }
 
-      ctx.putImageData(image, 0, 0)
+      // 
+      ctx.drawImage(frameImage, -canvas.width, 0, canvas.width, canvas.height)
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height)
+
+      for (let i = 0; i < frame.data.length; i += 4) {
+        let colorIndex = frameColors.indexOf(frame.data[i])
+        if (colorIndex === -1) continue
+        let [r, g, b] = colors[colorIndex]
+        frame.data[i] = r
+        frame.data[i + 1] = g
+        frame.data[i + 2] = b
+      }
 
       // draw frame image
-      if (frameImage) ctx.drawImage(frameImage, -frameWidth, 0, frameWidth, frameHeight)
+      ctx.putImageData(frame, 0, 0)
+
+      // draw image
+      ctx.putImageData(image, 0, 0, padding, padding, frameWidth - padding * 2, frameHeight - padding * 2)
     },
     async capture () {
       if (this.captured || this.showCount) return
@@ -282,7 +299,7 @@ export default {
 </script>
 
 <style scoped>
-.palletes {
+.palettes {
   display: flex;
   flex-wrap: nowrap;
   overflow: auto;
@@ -329,12 +346,6 @@ h1 {
   text-shadow: 1px 1px 0 #000;
   white-space: nowrap;
   text-transform: uppercase;
-}
-
-@media (any-hover: hover) {
-  .overlay.show-instructions:hover::after {
-    content: 'click to snap!';
-  }
 }
 
 .overlay img {

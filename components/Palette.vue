@@ -1,20 +1,23 @@
 <template>
-  <div class="pallete" :class="{ selected }">
+  <div class="palette" :class="{ selected }">
     <div class="colors" :style="style"></div>
-    <div class="name">{{ pallete.name }}</div>
+    <div class="name">{{ name }}</div>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'Pallete',
+  name: 'Palette',
   props: {
-    pallete: Object,
+    palette: Array,
     selected: Boolean,
   },
   computed: {
+    name () {
+      return this.palette[0]
+    },
     style () {
-      const { colors } = this.pallete
+      const [, colors] = this.palette
       const backgroundImage = colors.map(([ r, g, b]) => {
         const color = `rgb(${r},${g},${b})`
         return `linear-gradient(to right, ${color}, ${color})`
@@ -32,7 +35,7 @@ input {
   visibility: hidden;
 }
 
-.pallete {
+.palette {
   font-size: 10px;
   text-align: center;
   margin: 0 10px;
@@ -40,10 +43,10 @@ input {
 }
 
 .colors {
-  height: 40px;
-  width: 40px;
+  height: 32px;
+  width: 32px;
   background-size: 50% 50%;
-  background-position: top left, bottom left, top right, bottom right;
+  background-position: top right, bottom right, bottom left, top left;
   background-repeat: no-repeat;
   display: inline-block;
   margin-bottom: 10px;
