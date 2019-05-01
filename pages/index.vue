@@ -40,7 +40,7 @@
 </template>
 
 <script>
-import palette from '~/components/palette'
+import palette from '~/components/Palette'
 import PALETTES from '~/palettes'
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
