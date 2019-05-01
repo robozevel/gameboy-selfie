@@ -1,7 +1,7 @@
 {
   "name": "gameboy-selfie",
   "version": "1.0.0",
-  "description": "",
+  "description": "TAP TO SNAP!",
   "main": "index.js",
   "scripts": {
     "now-build": "nuxt generate",
@@ -12,13 +12,14 @@
     "type": "git",
     "url": "git+https://github.com/robozevel/gameboy-selfie.git"
   },
-  "author": "",
+  "author": "Guy Levi",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/robozevel/gameboy-selfie/issues"
   },
   "homepage": "https://github.com/robozevel/gameboy-selfie#readme",
   "dependencies": {
+    "@nuxtjs/pwa": "^3.0.0-beta.14",
     "nuxt": "^2.6.2"
   },
   "devDependencies": {
