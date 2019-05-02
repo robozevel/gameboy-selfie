@@ -4,6 +4,7 @@
       <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata.once="play"></video>
       <canvas ref="canvas" :height="frameHeight" :width="frameWidth"></canvas>
       <canvas ref="resizedCanvas" hidden></canvas>
+      <audio v-if="videoWidth" src="boot.mp3" autoplay></audio>
       <div class="overlay" role="button" @click="capture" :class="{ 'show-instructions': showInstructions }">
         <span class="count" v-if="showCount">{{ count }}</span>
         <img :src="captured" v-else-if="captured" />
@@ -172,7 +173,7 @@ export default {
         // set stream to video element
         video.srcObject = await navigator.mediaDevices.getUserMedia(constraints)
       } catch (err) {
-        // @TODO handle error!
+        alert(err.message)
       }
     },
     async onPlay () {
