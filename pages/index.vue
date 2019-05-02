@@ -3,6 +3,7 @@
     <div class="image-container" :style="{ maxWidth: fitScale ? `${canvasWidth}px` : `${frameWidth}px` }">
       <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata.once="play"></video>
       <canvas ref="canvas" :height="frameHeight" :width="frameWidth"></canvas>
+      <canvas ref="resizedCanvas" hidden></canvas>
       <div class="overlay" role="button" @click="capture" :class="{ 'show-instructions': showInstructions }">
         <span class="count" v-if="showCount">{{ count }}</span>
         <img :src="captured" v-else-if="captured" />
@@ -90,7 +91,7 @@ export default {
       fitScale: true,
       highContrast: false,
       scale: 1,
-      maxScale: 3,
+      maxScale: 2,
       threshold: 135,
       videoHeight: 0,
       videoWidth: 0,
@@ -143,7 +144,7 @@ export default {
       return ((this.resizedHeight / 2) - (this.fitHeight / 2)) * -1
     },
     canvasWidth () {
-      return ((this.originalPadding * 2) + this.originalWidth) * this.maxScale
+      return ((this.originalPadding * 2) + this.originalWidth) * (this.maxScale + 1)
     },
     ratio () {
       return this.videoHeight / this.videoWidth
@@ -167,6 +168,7 @@ export default {
 
         // get frame image data
         this.frameImage = await getImage('frame.png')
+
         // set stream to video element
         video.srcObject = await navigator.mediaDevices.getUserMedia(constraints)
       } catch (err) {
@@ -286,7 +288,19 @@ export default {
       if (this.captured || this.showCount) return
       await this.countdownSeconds(3)
       if (this.video) this.video.pause()
-      this.captured = this.$refs.canvas.toDataURL('image/png')
+      const { resizedCanvas, canvas } = this.$refs
+      const resizeFactor = 4 / this.scale
+      resizedCanvas.width = canvas.width * resizeFactor
+      resizedCanvas.height = canvas.height * resizeFactor
+
+      const ctx = resizedCanvas.getContext('2d')
+      ctx.mozImageSmoothingEnabled = false
+      ctx.webkitImageSmoothingEnabled = false
+      ctx.msImageSmoothingEnabled = false
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(canvas, 0, 0, resizedCanvas.width, resizedCanvas.height)
+
+      this.captured = resizedCanvas.toDataURL('image/png')
       this.timestamp = (new Date()).toISOString()
     },
     retake () {
@@ -510,5 +524,4 @@ input[type=range]:focus::-ms-fill-lower {
 input[type=range]:focus::-ms-fill-upper {
   background: #fff;
 }
-
 </style>
