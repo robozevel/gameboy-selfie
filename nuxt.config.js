@@ -46,7 +46,10 @@ module.exports = () => ({
     twitterCreator: '@robozevel'
   },
   modules: [
-    ['@nuxtjs/pwa', { icon: false }]
+    ['@nuxtjs/pwa', { icon: false }],
+    ['@nuxtjs/google-analytics', {
+      id: 'UA-139919699-1'
+    }]
   ],
   build: {
     extend(config, ctx) {

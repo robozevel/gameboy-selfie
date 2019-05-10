@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/robozevel/gameboy-selfie#readme",
   "dependencies": {
+    "@nuxtjs/google-analytics": "^2.2.0",
     "@nuxtjs/pwa": "^3.0.0-beta.14",
     "nuxt": "^2.6.2"
   },
