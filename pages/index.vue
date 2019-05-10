@@ -1,13 +1,13 @@
 <template>
   <main>
     <div class="image-container" :style="{ maxWidth: fitScale ? `${canvasWidth}px` : `${frameWidth}px` }">
-      <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata.once="play"></video>
+      <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata="play"></video>
       <canvas ref="canvas" :height="frameHeight" :width="frameWidth"></canvas>
       <canvas ref="resizedCanvas" hidden></canvas>
       <audio v-if="videoWidth" src="boot.mp3" autoplay></audio>
-      <div class="overlay" role="button" @click="capture" :class="{ 'show-instructions': showInstructions }">
+      <img v-if="captured" :src="captured" class="overlay" />
+      <div v-else class="overlay" role="button" @click="capture" :class="{ 'show-instructions': showInstructions }">
         <span class="count" v-if="showCount">{{ count }}</span>
-        <img :src="captured" v-else-if="captured" />
       </div>
     </div>
 
@@ -31,6 +31,7 @@
         <div class="slider">
           <span>brightness</span>
           <input type="range" v-model="brightness" min="1" step="0.1" max="10" />
+          <span v-if="showCameraFlip" role="button" class="button" :class="{ off: !isSelfie }" @click="isSelfie = !isSelfie">selfie</span>
         </div>
         <div class="palettes">
           <palette role="button" @click.native="paletteIndex = i" v-for="(palette, i) in palettes" :palette="palette" :selected="paletteIndex === i" :key="i" />
@@ -42,18 +43,16 @@
 </template>
 
 <script>
+import onVisibilityChange from '~/mixins/on-visibility-change'
 import palette from '~/components/Palette'
 import PALETTES from '~/palettes'
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
 const webcamSupported = process.browser && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
 
-const constraints = {
-  audio: false,
-  video: {
-    facingMode: 'user',
-    aspectRatio: { ideal: 1 }
-  }
+const isSafari = () => {
+  const ua = navigator.userAgent.toLowerCase()
+  return ((ua.indexOf('safari') !== -1) && (ua.indexOf('chrome') === -1))
 }
 
 const BAYER_THRESHOLD_MAP = [
@@ -76,8 +75,17 @@ export default {
   components: {
     palette
   },
+  mixins: [
+    onVisibilityChange(function(hidden) {
+      const { video } = this.$refs
+      if (!video || this.captured) return
+      video[hidden ? 'pause' : 'play']()
+    })
+  ],
   data () {
     return {
+      isSelfie: true,
+      devices: null,
       thresholdMap: BAYER_THRESHOLD_MAP,
       palettes: PALETTES,
       paletteIndex: 0,
@@ -86,7 +94,7 @@ export default {
       minZoom: 1,
       maxZoom: 5,
       showVideo: true,
-      frameImage: null,
+      frameImages: {},
       frameColors: [0, 128, 192, 255],
       timestamp: null,
       fitScale: true,
@@ -105,14 +113,25 @@ export default {
       webcamSupported
     }
   },
-  mounted () {
-    document.addEventListener('visibilitychange', this.onVisibilityChange)
+  async mounted () {
+    // get frame image data
+    this.frameImages = {
+      user: await getImage(`frame-user.png`),
+      environment: await getImage(`frame-environment.png`)
+    }
+
     this.initialize()
   },
-  beforeDestroy () {
-    document.removeEventListener('visibilitychange', this.onVisibilityChange)
-  },
   computed: {
+    frameImage () {
+      return this.frameImages[this.facingMode]
+    },
+    showCameraFlip () {
+      return this.devices && this.devices.length > 1
+    },
+    facingMode () {
+      return this.isSelfie ? 'user' : 'environment'
+    },
     height () {
       return this.originalHeight * this.scale
     },
@@ -139,6 +158,7 @@ export default {
       return this.resizedWidth * this.ratio
     },
     dx () {
+      if (!this.isSelfie) return 0
       return (this.resizedWidth / 2) - (this.frameWidth / 2) - this.resizedWidth
     },
     dy () {
@@ -165,16 +185,32 @@ export default {
       await this.$nextTick()
       try {
         if (!this.webcamSupported) throw new Error('Webcam not supported')
-        const { video, frameCanvas } = this.$refs
 
-        // get frame image data
-        this.frameImage = await getImage('frame.png')
+        const { video, frameCanvas } = this.$refs
+        if (video.srcObject) video.srcObject.getTracks().map(track => track.stop())
 
         // set stream to video element
-        video.srcObject = await navigator.mediaDevices.getUserMedia(constraints)
+        this.devices = await this.getDevices()
+        video.srcObject = await this.getUserMedia()
       } catch (err) {
+        console.error(err)
         alert(err.message)
       }
+    },
+    async getDevices () {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      return devices.filter(device => device.kind === 'videoinput')
+    },
+    async getUserMedia () {
+      const constraints = {
+        audio: false,
+        video: {
+          aspectRatio: { ideal: 1 },
+          facingMode: isSafari() ? { exact: this.facingMode } : this.facingMode
+        }
+      }
+console.log(constraints)
+      return navigator.mediaDevices.getUserMedia(constraints)
     },
     async onPlay () {
       await this.$nextTick()
@@ -188,11 +224,6 @@ export default {
       if (!video || video.paused || video.ended) return
       this.computeFrame()
       setTimeout(this.timerCallback, 1000 / 60)
-    },
-    onVisibilityChange () {
-      const { video } = this.$refs
-      if (!video || this.captured) return
-      video[document.hidden ? 'pause' : 'play']()
     },
     play () {
       this.$refs.video.play()
@@ -212,7 +243,7 @@ export default {
     computeFrame () {
       const { video, canvas } = this.$refs
       const {
-        frameImage, frameWidth, frameHeight,
+        frameImage, frameWidth, frameHeight, isSelfie,
         resizedWidth, resizedHeight, dx, dy, padding,
         thresholdMap, threshold, highContrast, brightness, palette, frameColors
       } = this
@@ -226,7 +257,7 @@ export default {
       ctx.imageSmoothingEnabled = false
 
       // mirror video stream
-      ctx.setTransform(-1, 0, 0, 1, 0, 0)
+      ctx.setTransform(isSelfie ? -1 : 1, 0, 0, 1, 0, 0)
 
       // resize video
       ctx.drawImage(video, dx, dy, resizedWidth, resizedHeight)
@@ -266,8 +297,7 @@ export default {
         image.data[i + 2] = b
       }
 
-      // 
-      ctx.drawImage(frameImage, -canvas.width, 0, canvas.width, canvas.height)
+      ctx.drawImage(frameImage, dx, dy, canvas.width, canvas.height)
       const frame = ctx.getImageData(0, 0, canvas.width, canvas.height)
 
       for (let i = 0; i < frame.data.length; i += 4) {
@@ -308,6 +338,11 @@ export default {
       this.captured = null
       this.timestamp = null
       this.play()
+    }
+  },
+  watch: {
+    isSelfie () {
+      this.initialize()
     }
   }
 }
