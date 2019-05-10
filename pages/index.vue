@@ -209,7 +209,7 @@ export default {
           facingMode: isSafari() ? { exact: this.facingMode } : this.facingMode
         }
       }
-console.log(constraints)
+
       return navigator.mediaDevices.getUserMedia(constraints)
     },
     async onPlay () {
