@@ -158,8 +158,11 @@ export default {
       return this.resizedWidth * this.ratio
     },
     dx () {
-      if (!this.isSelfie) return 0
-      return (this.resizedWidth / 2) - (this.frameWidth / 2) - this.resizedWidth
+      if (this.isSelfie) {
+        return (this.resizedWidth / 2) - (this.frameWidth / 2) - this.resizedWidth
+      } else {
+        return (this.resizedWidth / 2) + (this.frameWidth / 2) - this.resizedWidth
+      }
     },
     dy () {
       return ((this.resizedHeight / 2) - (this.fitHeight / 2)) * -1
@@ -297,7 +300,7 @@ export default {
         image.data[i + 2] = b
       }
 
-      ctx.drawImage(frameImage, dx, dy, canvas.width, canvas.height)
+      ctx.drawImage(frameImage, isSelfie ? -canvas.width : 0, 0, canvas.width, canvas.height)
       const frame = ctx.getImageData(0, 0, canvas.width, canvas.height)
 
       for (let i = 0; i < frame.data.length; i += 4) {
