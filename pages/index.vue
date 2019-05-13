@@ -119,7 +119,7 @@ export default {
       user: await getImage(`frame-user.png`),
       environment: await getImage(`frame-environment.png`)
     }
-
+ 
     this.initialize()
   },
   computed: {
@@ -157,6 +157,12 @@ export default {
     resizedHeight () {
       return this.resizedWidth * this.ratio
     },
+    croppedWidth () {
+      return this.frameWidth - (this.padding * 2)
+    },
+    croppedHeight () {
+      return this.frameHeight - (this.padding * 2)
+    },
     dx () {
       if (this.isSelfie) {
         return (this.resizedWidth / 2) - (this.frameWidth / 2) - this.resizedWidth
@@ -189,12 +195,16 @@ export default {
       try {
         if (!this.webcamSupported) throw new Error('Webcam not supported')
 
-        const { video, frameCanvas } = this.$refs
+        const { video } = this.$refs
+  
+        // stop previous stream
         if (video.srcObject) video.srcObject.getTracks().map(track => track.stop())
 
         // set stream to video element
-        this.devices = await this.getDevices()
         video.srcObject = await this.getUserMedia()
+
+        // list devices
+        this.devices = await this.getDevices()
       } catch (err) {
         console.error(err)
         alert(err.message)
@@ -225,7 +235,7 @@ export default {
     timerCallback () {
       const { video } = this.$refs
       if (!video || video.paused || video.ended) return
-      this.computeFrame()
+      this.draw()
       setTimeout(this.timerCallback, 1000 / 60)
     },
     play () {
@@ -243,16 +253,11 @@ export default {
       await delay(1000)
       return this.countdownSeconds(count - 1)
     },
-    computeFrame () {
+    draw () {
       const { video, canvas } = this.$refs
-      const {
-        frameImage, frameWidth, frameHeight, isSelfie,
-        resizedWidth, resizedHeight, dx, dy, padding,
-        thresholdMap, threshold, highContrast, brightness, palette, frameColors
-      } = this
+      const { width, height } = canvas
 
-      const [, colors] = palette
-
+      // keep it pixelated
       const ctx = canvas.getContext('2d')
       ctx.mozImageSmoothingEnabled = false
       ctx.webkitImageSmoothingEnabled = false
@@ -260,14 +265,22 @@ export default {
       ctx.imageSmoothingEnabled = false
 
       // mirror video stream
-      ctx.setTransform(isSelfie ? -1 : 1, 0, 0, 1, 0, 0)
+      ctx.setTransform(this.isSelfie ? -1 : 1, 0, 0, 1, 0, 0)
 
-      // resize video
-      ctx.drawImage(video, dx, dy, resizedWidth, resizedHeight)
+      // resize and draw image
+      ctx.drawImage(video, this.dx, this.dy, this.resizedWidth, this.resizedHeight)
+      const image = this.processImage(ctx.getImageData(0, 0, width, height))
+      ctx.putImageData(image, 0, 0, this.padding, this.padding, this.croppedWidth, this.croppedHeight)
 
-      // get current frame
-      const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      // draw frame image
+      ctx.drawImage(this.frameImage, this.isSelfie ? -width : 0, 0, width, height)
+      const frame = this.processFrame(ctx.getImageData(0, 0, width, height))
+      ctx.putImageData(frame, 0, 0)
+    },
+    processImage (image) {
       const { length } = image.data
+      const { thresholdMap, threshold, highContrast, brightness, palette } = this
+      const [, colors] = palette
 
       // iterate image pixels
       for (let i = 0; i < length; i += 4) {
@@ -300,23 +313,22 @@ export default {
         image.data[i + 2] = b
       }
 
-      ctx.drawImage(frameImage, isSelfie ? -canvas.width : 0, 0, canvas.width, canvas.height)
-      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      return image
+    },
+    processFrame (image) {
+      const { frameColors, palette } = this
+      const [, colors] = palette
 
-      for (let i = 0; i < frame.data.length; i += 4) {
-        let colorIndex = frameColors.indexOf(frame.data[i])
+      for (let i = 0; i < image.data.length; i += 4) {
+        let colorIndex = frameColors.indexOf(image.data[i])
         if (colorIndex === -1) continue
         let [r, g, b] = colors[colorIndex]
-        frame.data[i] = r
-        frame.data[i + 1] = g
-        frame.data[i + 2] = b
+        image.data[i] = r
+        image.data[i + 1] = g
+        image.data[i + 2] = b
       }
 
-      // draw frame image
-      ctx.putImageData(frame, 0, 0)
-
-      // draw image
-      ctx.putImageData(image, 0, 0, padding, padding, frameWidth - padding * 2, frameHeight - padding * 2)
+      return image
     },
     async capture () {
       if (this.captured || this.showCount) return
