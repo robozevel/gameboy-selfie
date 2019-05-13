@@ -230,13 +230,13 @@ export default {
       const { video } = this.$refs
       this.videoWidth = video.videoWidth
       this.videoHeight = video.videoHeight
-      this.timerCallback()
+      requestAnimationFrame(this.timerCallback)
     },
     timerCallback () {
       const { video } = this.$refs
       if (!video || video.paused || video.ended) return
       this.draw()
-      setTimeout(this.timerCallback, 1000 / 60)
+      requestAnimationFrame(this.timerCallback)
     },
     play () {
       this.$refs.video.play()
