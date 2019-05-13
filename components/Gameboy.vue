@@ -36,14 +36,39 @@ export default {
     })
   ],
   props: {
-    options: null,
-    fit: Boolean,
-    scale: Number,
-    maxScale: Number,
-    zoom: Number,
+    fit: {
+      type: Boolean,
+      default: true
+    },
+    scale: {
+      type: Number,
+      default: 1,
+    },
+    maxScale: {
+      type: Number,
+      default: 2,
+    },
+    zoom: {
+      type: Number,
+      default: 1,
+    },
     selfie: {
       type: Boolean,
       default: true
+    },
+    options: {
+      type: Object,
+      default: () => ({
+        highContrast: false,
+        brightness: 1,
+        threshold: 135,
+        palette: [null, [
+          [0, 0, 0],
+          [128, 128, 128],
+          [192, 192, 192],
+          [255, 255, 255]
+        ]]
+      })
     }
   },
   data () {
@@ -77,9 +102,7 @@ export default {
   computed: {
     colors () {
       const { palette } = Object(this.options)
-      if (!palette) return
-      const [, colors] = palette
-      return colors
+      return palette && palette[1]
     },
     frameImage () {
       return this.frameImages[this.facingMode]
