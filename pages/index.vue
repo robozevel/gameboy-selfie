@@ -267,15 +267,17 @@ export default {
       // mirror video stream
       ctx.setTransform(this.isSelfie ? -1 : 1, 0, 0, 1, 0, 0)
 
-      // resize and draw image
+      // resize and process video
       ctx.drawImage(video, this.dx, this.dy, this.resizedWidth, this.resizedHeight)
       const image = this.processImage(ctx.getImageData(0, 0, width, height))
-      ctx.putImageData(image, 0, 0, this.padding, this.padding, this.croppedWidth, this.croppedHeight)
 
-      // draw frame image
+      // process frame image
       ctx.drawImage(this.frameImage, this.isSelfie ? -width : 0, 0, width, height)
       const frame = this.processFrame(ctx.getImageData(0, 0, width, height))
+      
+      // draw frame and image
       ctx.putImageData(frame, 0, 0)
+      ctx.putImageData(image, 0, 0, this.padding, this.padding, this.croppedWidth, this.croppedHeight)
     },
     processImage (image) {
       const { length } = image.data
