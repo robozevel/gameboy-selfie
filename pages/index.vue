@@ -1,17 +1,13 @@
 <template>
   <main>
-    <div class="image-container" :style="{ maxWidth: fitScale ? `${canvasWidth}px` : `${frameWidth}px` }">
-      <video ref="video" muted autoplay playsinline @play="onPlay" @loadedmetadata="play"></video>
-      <canvas ref="canvas" :height="frameHeight" :width="frameWidth"></canvas>
-      <canvas ref="resizedCanvas" hidden></canvas>
-      <audio v-if="videoWidth" src="boot.mp3" autoplay></audio>
+    <gameboy ref="gameboy" class="gameboy" @ready="onReady" :selfie="isSelfie" :zoom="zoom" :scale="scale" :max-scale="maxScale" :fit="fitScale" :options="{ brightness, threshold, palette, highContrast }">
       <img v-if="captured" :src="captured" class="overlay" />
       <div v-else class="overlay" role="button" @click="capture" :class="{ 'show-instructions': showInstructions }">
         <span class="count" v-if="showCount">{{ count }}</span>
       </div>
-    </div>
+    </gameboy>
 
-    <div class="buttons-container" :style="{ maxWidth: `${canvasWidth}px` }" v-if="!showCount">
+    <div class="buttons-container" v-if="!showCount">
       <template v-if="captured">
         <span class="button retake" role="button" @click="retake">retake</span>
         <a class="button save" role="button" :href="captured" :download="filename">save</a>
@@ -19,18 +15,18 @@
       <template v-else>
         <div class="slider">
           <span>zoom</span>
-          <input type="range" :min="minZoom" step="0.1" :max="maxZoom" v-model="zoom" />
+          <input type="range" min="1" step="0.1" max="5" v-model.number="zoom" />
           <span role="button" class="button" :class="{ off: !fitScale }" @click="fitScale = !fitScale">fit</span>
           <span role="button" class="button" @click="scaleUp">{{ scale }}x</span>
         </div>
         <div class="slider">
           <span>contrast</span>
-          <input type="range" v-model="threshold" min="0" step="5" max="255" />
+          <input type="range" v-model.number="threshold" min="0" step="5" max="255" />
           <span role="button" class="button" :class="{ off: !highContrast }" @click="highContrast = !highContrast">hi</span>
         </div>
         <div class="slider">
           <span>brightness</span>
-          <input type="range" v-model="brightness" min="1" step="0.1" max="10" />
+          <input type="range" v-model.number="brightness" min="1" step="0.1" max="10" />
           <span v-if="showCameraFlip" role="button" class="button" :class="{ off: !isSelfie }" @click="isSelfie = !isSelfie">selfie</span>
         </div>
         <div class="palettes">
@@ -43,142 +39,38 @@
 </template>
 
 <script>
-import onVisibilityChange from '~/mixins/on-visibility-change'
-import palette from '~/components/Palette'
+import Palette from '~/components/Palette'
+import Gameboy from '~/components/Gameboy'
+
 import PALETTES from '~/palettes'
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
-const webcamSupported = process.browser && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function'
-
-const isSafari = () => {
-  const ua = navigator.userAgent.toLowerCase()
-  return ((ua.indexOf('safari') !== -1) && (ua.indexOf('chrome') === -1))
-}
-
-const BAYER_THRESHOLD_MAP = [
-  [15, 135, 45, 165],
-  [195, 75, 225, 105],
-  [60, 180, 30, 150],
-  [240, 120, 210, 90]
-]
-
-function getImage (src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.src = src
-    img.onload = () => resolve(img)
-    img.onerror = err => reject(err)
-  })
-}
 
 export default {
   components: {
-    palette
+    Gameboy,
+    Palette
   },
-  mixins: [
-    onVisibilityChange(function(hidden) {
-      const { video } = this.$refs
-      if (!video || this.captured) return
-      video[hidden ? 'pause' : 'play']()
-    })
-  ],
   data () {
     return {
       isSelfie: true,
-      devices: null,
-      thresholdMap: BAYER_THRESHOLD_MAP,
+      showCameraFlip: false,
       palettes: PALETTES,
       paletteIndex: 0,
       brightness: 1,
       zoom: 1,
-      minZoom: 1,
-      maxZoom: 5,
-      showVideo: true,
-      frameImages: {},
-      frameColors: [0, 128, 192, 255],
       timestamp: null,
       fitScale: true,
       highContrast: false,
       scale: 1,
       maxScale: 2,
       threshold: 135,
-      videoHeight: 0,
-      videoWidth: 0,
       showCount: false,
       count: null,
-      captured: null,
-      originalPadding: 16,
-      originalHeight: 112,
-      originalWidth: 128,
-      webcamSupported
+      captured: null
     }
-  },
-  async mounted () {
-    // get frame image data
-    this.frameImages = {
-      user: await getImage(`frame-user.png`),
-      environment: await getImage(`frame-environment.png`)
-    }
- 
-    this.initialize()
   },
   computed: {
-    frameImage () {
-      return this.frameImages[this.facingMode]
-    },
-    showCameraFlip () {
-      return this.devices && this.devices.length > 1
-    },
-    facingMode () {
-      return this.isSelfie ? 'user' : 'environment'
-    },
-    height () {
-      return this.originalHeight * this.scale
-    },
-    width () {
-      return this.originalWidth * this.scale
-    },
-    padding () {
-      return this.originalPadding * this.scale
-    },
-    frameWidth () {
-      return this.width + (this.padding * 2)
-    },
-    frameHeight () {
-      return this.height + (this.padding * 2)
-    },
-    fitHeight () {
-      return this.frameWidth * this.ratio
-    },
-    resizedWidth () {
-      const zoom = Math.min(Math.max(this.zoom, this.minZoom), this.maxZoom)
-      return this.frameWidth * zoom
-    },
-    resizedHeight () {
-      return this.resizedWidth * this.ratio
-    },
-    croppedWidth () {
-      return this.frameWidth - (this.padding * 2)
-    },
-    croppedHeight () {
-      return this.frameHeight - (this.padding * 2)
-    },
-    dx () {
-      if (this.isSelfie) {
-        return (this.resizedWidth / 2) - (this.frameWidth / 2) - this.resizedWidth
-      } else {
-        return (this.resizedWidth / 2) + (this.frameWidth / 2) - this.resizedWidth
-      }
-    },
-    dy () {
-      return ((this.resizedHeight / 2) - (this.fitHeight / 2)) * -1
-    },
-    canvasWidth () {
-      return ((this.originalPadding * 2) + this.originalWidth) * (this.maxScale + 1)
-    },
-    ratio () {
-      return this.videoHeight / this.videoWidth
-    },
     filename () {
       return `GAMEBOY_CAMERA_${this.timestamp}.png`
     },
@@ -190,56 +82,8 @@ export default {
     }
   },
   methods: {
-    async initialize () {
-      await this.$nextTick()
-      try {
-        if (!this.webcamSupported) throw new Error('Webcam not supported')
-
-        const { video } = this.$refs
-  
-        // stop previous stream
-        if (video.srcObject) video.srcObject.getTracks().map(track => track.stop())
-
-        // set stream to video element
-        video.srcObject = await this.getUserMedia()
-
-        // list devices
-        this.devices = await this.getDevices()
-      } catch (err) {
-        console.error(err)
-        alert(err.message)
-      }
-    },
-    async getDevices () {
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      return devices.filter(device => device.kind === 'videoinput')
-    },
-    async getUserMedia () {
-      const constraints = {
-        audio: false,
-        video: {
-          aspectRatio: { ideal: 1 },
-          facingMode: isSafari() ? { exact: this.facingMode } : this.facingMode
-        }
-      }
-
-      return navigator.mediaDevices.getUserMedia(constraints)
-    },
-    async onPlay () {
-      await this.$nextTick()
-      const { video } = this.$refs
-      this.videoWidth = video.videoWidth
-      this.videoHeight = video.videoHeight
-      requestAnimationFrame(this.timerCallback)
-    },
-    timerCallback () {
-      const { video } = this.$refs
-      if (!video || video.paused || video.ended) return
-      this.draw()
-      requestAnimationFrame(this.timerCallback)
-    },
-    play () {
-      this.$refs.video.play()
+    onReady ({ devices }) {
+      this.showCameraFlip = devices && devices.length > 1
     },
     scaleUp () {
       const scale = this.scale + 1
@@ -253,142 +97,36 @@ export default {
       await delay(1000)
       return this.countdownSeconds(count - 1)
     },
-    draw () {
-      const { video, canvas } = this.$refs
-      const { width, height } = canvas
-
-      // keep it pixelated
-      const ctx = canvas.getContext('2d')
-      ctx.mozImageSmoothingEnabled = false
-      ctx.webkitImageSmoothingEnabled = false
-      ctx.msImageSmoothingEnabled = false
-      ctx.imageSmoothingEnabled = false
-
-      // mirror video stream
-      ctx.setTransform(this.isSelfie ? -1 : 1, 0, 0, 1, 0, 0)
-
-      // resize and process video
-      ctx.drawImage(video, this.dx, this.dy, this.resizedWidth, this.resizedHeight)
-      const image = this.processImage(ctx.getImageData(0, 0, width, height))
-
-      // process frame image
-      ctx.drawImage(this.frameImage, this.isSelfie ? -width : 0, 0, width, height)
-      const frame = this.processFrame(ctx.getImageData(0, 0, width, height))
-      
-      // draw frame and image
-      ctx.putImageData(frame, 0, 0)
-      ctx.putImageData(image, 0, 0, this.padding, this.padding, this.croppedWidth, this.croppedHeight)
-    },
-    processImage (image) {
-      const { length } = image.data
-      const { thresholdMap, threshold, highContrast, brightness, palette } = this
-      const [, colors] = palette
-
-      // iterate image pixels
-      for (let i = 0; i < length; i += 4) {
-
-        // increase luminance by brightness factor
-        let luminance = brightness * Math.sqrt(
-          Math.pow(image.data[i] * 0.299, 2) +
-          Math.pow(image.data[i + 1] * 0.587, 2) +
-          Math.pow(image.data[i + 2] * 0.114, 2)
-        )
-
-        // use threshold map to find greyscale value
-        let x = i / 4 % image.width
-        let y = Math.floor(i / 4 / image.width)
-        let map = Math.floor((luminance + thresholdMap[x % 4][y % 4]) / 2)
-
-        // set color by contrast threshold
-        let colorIndex = 0
-        if (map < threshold) {
-          if (highContrast) colorIndex = 0
-          else colorIndex = map < (threshold / 2) ? 0 : 1;
-        } else {
-          if (highContrast) colorIndex = 3
-          else colorIndex = map > (threshold * 2) ? 3 : 2;
-        }
-
-        let [r, g, b] = colors[colorIndex]
-        image.data[i] = r
-        image.data[i + 1] = g
-        image.data[i + 2] = b
-      }
-
-      return image
-    },
-    processFrame (image) {
-      const { frameColors, palette } = this
-      const [, colors] = palette
-
-      for (let i = 0; i < image.data.length; i += 4) {
-        let colorIndex = frameColors.indexOf(image.data[i])
-        if (colorIndex === -1) continue
-        let [r, g, b] = colors[colorIndex]
-        image.data[i] = r
-        image.data[i + 1] = g
-        image.data[i + 2] = b
-      }
-
-      return image
-    },
     async capture () {
       if (this.captured || this.showCount) return
       await this.countdownSeconds(3)
-      if (this.video) this.video.pause()
-      const { resizedCanvas, canvas } = this.$refs
-      const resizeFactor = 4 / this.scale
-      resizedCanvas.width = canvas.width * resizeFactor
-      resizedCanvas.height = canvas.height * resizeFactor
-
-      const ctx = resizedCanvas.getContext('2d')
-      ctx.mozImageSmoothingEnabled = false
-      ctx.webkitImageSmoothingEnabled = false
-      ctx.msImageSmoothingEnabled = false
-      ctx.imageSmoothingEnabled = false
-      ctx.drawImage(canvas, 0, 0, resizedCanvas.width, resizedCanvas.height)
-
-      this.captured = resizedCanvas.toDataURL('image/png')
+      // if (this.video) this.video.pause()
+      this.captured = this.$refs.gameboy.capture()
       this.timestamp = (new Date()).toISOString()
     },
     retake () {
       this.captured = null
       this.timestamp = null
-      this.play()
-    }
-  },
-  watch: {
-    isSelfie () {
-      this.initialize()
     }
   }
 }
 </script>
 
 <style scoped>
+.gameboy {
+  position: relative;
+  text-align: center;
+  margin: 0 auto;
+}
+
 .palettes {
   display: flex;
   flex-wrap: nowrap;
   overflow: auto;
 }
 
-video {
-  display: none;
-}
-
-canvas {
-  width: 100%;
-  image-rendering: pixelated;
-}
-
 h1 {
   color: #fff;
-  position: relative;
-  text-align: center;
-  margin: 0 auto;
-}
-
-.image-container {
   position: relative;
   text-align: center;
   margin: 0 auto;
@@ -440,6 +178,8 @@ h1 {
   bottom: 0;
   left: 0;
   right: 0;
+  min-width: 320px;
+  max-width: 480px;
 }
 
 [role=button] {
