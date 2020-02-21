@@ -16,6 +16,7 @@
         <div class="slider">
           <span>zoom</span>
           <input type="range" min="1" step="0.1" max="5" v-model.number="zoom" />
+          <span v-if="showFullscreen" role="button" class="button" @click="toggleFullscreen">full</span>
           <span role="button" class="button" :class="{ off: !fitScale }" @click="fitScale = !fitScale">fit</span>
           <span role="button" class="button" @click="scaleUp">{{ scale }}x</span>
         </div>
@@ -28,7 +29,6 @@
           <span>brightness</span>
           <input type="range" v-model.number="brightness" min="1" step="0.1" max="10" />
           <span v-if="showCameraFlip" role="button" class="button" :class="{ off: !isSelfie }" @click="isSelfie = !isSelfie">selfie</span>
-          <span v-if="showFullscreen" role="button" class="button" @click="toggleFullscreen">fullscreen</span>
         </div>
         <div class="palettes">
           <palette role="button" @click.native="paletteIndex = i" v-for="(palette, i) in palettes" :palette="palette" :selected="paletteIndex === i" :key="i" />
