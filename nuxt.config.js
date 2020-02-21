@@ -29,6 +29,7 @@ module.exports = () => ({
       { hid: 'og:image:width', property: 'og:image:width', content: 800 }
     ],
     link: [
+      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' },
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Press+Start+2P' }
     ]
   },
