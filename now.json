@@ -1,8 +1,5 @@
 {
   "version": 2,
-  "alias": [
-    "gameboy.guy.is"
-  ],
   "builds": [
     {
       "src": "package.json",
