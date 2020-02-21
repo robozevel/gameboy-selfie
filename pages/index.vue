@@ -28,6 +28,7 @@
           <span>brightness</span>
           <input type="range" v-model.number="brightness" min="1" step="0.1" max="10" />
           <span v-if="showCameraFlip" role="button" class="button" :class="{ off: !isSelfie }" @click="isSelfie = !isSelfie">selfie</span>
+          <span v-if="showFullscreen" role="button" class="button" @click="toggleFullscreen">fullscreen</span>
         </div>
         <div class="palettes">
           <palette role="button" @click.native="paletteIndex = i" v-for="(palette, i) in palettes" :palette="palette" :selected="paletteIndex === i" :key="i" />
@@ -55,6 +56,7 @@ export default {
     return {
       isSelfie: true,
       showCameraFlip: false,
+      showFullscreen: false,
       palettes: PALETTES,
       paletteIndex: 0,
       brightness: 1,
@@ -84,6 +86,11 @@ export default {
   methods: {
     onReady ({ devices }) {
       this.showCameraFlip = devices && devices.length > 1
+      this.showFullscreen = typeof document.documentElement.requestFullscreen === 'function'
+    },
+    toggleFullscreen () {
+      const { gameboy } = this.$refs
+      if (gameboy) gameboy.toggleFullscreen()
     },
     scaleUp () {
       const scale = this.scale + 1

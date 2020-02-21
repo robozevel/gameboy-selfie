@@ -303,6 +303,9 @@ export default {
       ctx.drawImage(canvas, 0, 0, resizedCanvas.width, resizedCanvas.height)
 
       return resizedCanvas.toDataURL('image/png')
+    },
+    toggleFullscreen () {
+      this.$refs.canvas.requestFullscreen()
     }
   },
   watch: {
